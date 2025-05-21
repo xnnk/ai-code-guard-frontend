@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 import { authApi } from '@/lib/api/auth';
 import { useAuthStore } from '@/lib/stores/auth';
 import { LoginRequest } from '@/types/api';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -77,6 +78,12 @@ export default function LoginPage() {
           >
             {loading ? '登录中...' : '登录'}
           </button>
+          
+          <div className="text-center">
+            <Link href="/register" className="text-blue-600 hover:text-blue-800">
+              没有账号？立即注册
+            </Link>
+          </div>
         </form>
       </div>
     </div>

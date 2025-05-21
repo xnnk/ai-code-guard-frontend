@@ -57,3 +57,26 @@ export interface Vulnerability {
   suggestion: string;
   severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 }
+
+export interface EnhancedCodeAnalysisResult {
+  generatedCodeId: string;
+  generatedCodeContent: string;
+  language: string;
+  modelUsedForGeneration: string;
+  knowledgeGraphCypherQueries: string[];
+  knowledgeGraphDataRetrieved: {
+    'v.name': string;
+    'v.description': string | null;
+    'v.severity': string;
+  }[];
+  analysisReport: {
+    id: string;
+    codeId: string;
+    scanTime: number[];
+    scanType: string | null;
+    vulnerabilities: Vulnerability[];
+    summary: string;
+    securityScore: number;
+  };
+  modelUsedForAnalysis: string;
+}

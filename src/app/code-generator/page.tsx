@@ -79,7 +79,6 @@ export default function CodeGeneratorPage() {
                 <option value="">使用默认模型</option>
                 <option value="deepseek">DeepSeek</option>
                 <option value="claude">Claude</option>
-                <option value="openai">OpenAI</option>
               </select>
             </div>
 

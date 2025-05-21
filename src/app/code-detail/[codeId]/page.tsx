@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Editor from '@monaco-editor/react';
 import { generatedCodeApi } from '@/lib/api/generated-code';
 import { codeSecurityApi } from '@/lib/api/code-security';
-import { GeneratedCodeDocument } from '@/types/api';
+import { GeneratedCodeDocument, EnhancedCodeAnalysisResult } from '@/types/api';
 
 export default function CodeDetailPage() {
   const params = useParams();
@@ -14,9 +14,16 @@ export default function CodeDetailPage() {
   
   const [code, setCode] = useState<GeneratedCodeDocument | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [enhancedResult, setEnhancedResult] = useState<EnhancedCodeAnalysisResult | null>(null);
 
   useEffect(() => {
     fetchCodeDetail();
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
   }, [codeId]);
 
   const fetchCodeDetail = async () => {
@@ -32,16 +39,43 @@ export default function CodeDetailPage() {
     }
   };
 
+  const checkScanStatus = async () => {
+    try {
+      const response = await generatedCodeApi.getCodeDetail(codeId);
+      if (response.status === 200) {
+        const updatedCode = response.data;
+        setCode(updatedCode);
+        
+        if (updatedCode.scanStatus === 'COMPLETED' || updatedCode.scanStatus === 'FAILED') {
+          if (pollingInterval) {
+            clearInterval(pollingInterval);
+            setPollingInterval(null);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('检查扫描状态失败:', error);
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
+      }
+    }
+  };
+
   const triggerScan = async () => {
     if (!code) return;
     
     try {
-      const response = await codeSecurityApi.scanCode(code.id);
+      const response = await codeSecurityApi.scanCodeEnhanced(code.id);
       if (response.status === 200) {
         setCode(prev => prev ? { ...prev, scanStatus: 'SCANNING' } : null);
+        setEnhancedResult(response.data);
+        
+        const interval = setInterval(checkScanStatus, 3000);
+        setPollingInterval(interval);
       }
     } catch (error) {
-      console.error('触发扫描失败:', error);
+      console.error('触发增强扫描失败:', error);
     }
   };
 
@@ -93,7 +127,7 @@ export default function CodeDetailPage() {
               disabled={code.scanStatus === 'SCANNING'}
               className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50"
             >
-              {code.scanStatus === 'SCANNING' ? '扫描中...' : '开始扫描'}
+              {code.scanStatus === 'SCANNING' ? '扫描中...' : '开始增强扫描'}
             </button>
           )}
         </div>
@@ -137,6 +171,38 @@ export default function CodeDetailPage() {
             </div>
           </div>
         </div>
+
+        {enhancedResult && (
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold mb-4">知识图谱分析</h3>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="mb-4">
+                <h4 className="font-medium mb-2">知识图谱查询</h4>
+                <div className="space-y-2">
+                  {enhancedResult.knowledgeGraphCypherQueries.map((query, index) => (
+                    <div key={index} className="bg-gray-100 p-2 rounded text-sm font-mono">
+                      {query}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium mb-2">检索到的漏洞信息</h4>
+                <div className="space-y-2">
+                  {enhancedResult.knowledgeGraphDataRetrieved.map((item, index) => (
+                    <div key={index} className="bg-gray-100 p-2 rounded">
+                      <div className="font-medium">{item['v.name']}</div>
+                      {item['v.description'] && (
+                        <div className="text-sm text-gray-600">{item['v.description']}</div>
+                      )}
+                      <div className="text-sm text-gray-500">严重程度: {item['v.severity']}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
